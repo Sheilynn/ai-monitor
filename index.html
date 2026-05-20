@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 视觉专注力监控 system - GitHub Pages 同源 V2 修正版</title>
+    <title>AI 视觉专注力监控 system - MediaPipe V2 单任务文件版</title>
     
     <script src="https://fastly.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/vision_bundle.js" crossorigin="anonymous"></script>
 
@@ -149,6 +149,9 @@
             currentAlert = { title, msg };
         }
 
+        // 占位函数防止报错
+        function openManualModal() {}
+
         function handleAlertConfirm(isReal) {
             document.getElementById('alertModal').classList.remove('active');
             currentAlert = null;
@@ -236,22 +239,23 @@
 
         async function setup() {
             try {
-                // 🚀 【核心修复】：彻底废弃错误的 locateFile 参数，改用符合 V2 规范的稳定 CDN 作为 Wasm 编译器基础
+                // 初始化 Wasm 基础编译器（走公共安全 CDN）
                 const vision = await mediapipe.tasks.vision;
                 const filesetResolver = await vision.FilesetResolver.forVisionTasks(
                     "https://fastly.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
                 );
 
-                // 获取并规范化当前 GitHub Pages 部署路径
-                const currentOrigin = window.location.origin + window.location.pathname;
-                const basePath = currentOrigin.endsWith('.html') 
-                    ? currentOrigin.substring(0, currentOrigin.lastIndexOf('/') + 1) 
-                    : (currentOrigin.endsWith('/') ? currentOrigin : currentOrigin + '/');
+                // 🚀 【终极清洗提取】：不管当前 HTML 文件名多长、带不带中文，只截取到它所在的当前文件夹路径
+                const currentFullUrl = window.location.href;
+                const folderPath = currentFullUrl.substring(0, currentFullUrl.lastIndexOf('/') + 1);
+                const finalModelPath = folderPath + "face_landmarker.task";
+                
+                console.log("🎯 [路径自适应审计] 规范化后的模型绝对路径为:", finalModelPath);
 
-                // 🚀 【同源配置】：从你自己的 GitHub 仓库根目录完全同源加载单个 task 模型文件
+                // 从清洗后的安全同源路径加载模型
                 faceLandmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {
                     baseOptions: {
-                        modelAssetPath: basePath + "face_landmarker.task", 
+                        modelAssetPath: finalModelPath, 
                         delegate: "GPU"
                     },
                     outputFaceBlendshapes: false,
