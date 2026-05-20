@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 视觉专注力监控 system - 高级全域自适应 Web 国内加速版</title>
     
-    <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mediapipe__camera_utils/0.2/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/mediapipe__face_mesh/0.4/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/camera_utils@0.2/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -313,9 +313,9 @@
 
         async function setup() {
             try {
-                // 🚀 核心修复 2：将核心权重资产请求拦截重定向至字节跳动全量国内源，保证 .wasm 和 .data 文件绝不丢包
+                // 🚀 重定向到无跨域限制的 jsDelivr 全量源
                 const faceMesh = new FaceMesh({
-                    locateFile: (file) => `https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/mediapipe__face_mesh/0.4/${file}`
+                    locateFile: (file) => `https://fastly.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/${file}`
                 });
 
                 faceMesh.setOptions({
@@ -337,7 +337,6 @@
 
                 await camera.start();
                 
-                // 引擎就绪状态更新
                 updateUI('statusText', '监控中');
                 document.getElementById('systemStatus').style.color = "#00ff88";
                 
