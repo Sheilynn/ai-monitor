@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 视觉专注力监控系统 - 前后端级联版</title>
-    <script src="https://g.cdnjs.cn/ajax/libs/mediapipe-camera_utils/0.2/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://g.cdnjs.cn/ajax/libs/mediapipe-face_mesh/0.4/face_mesh.js" crossorigin="anonymous"></script>
+    <title>AI 视觉专注力监控系统 - 前后端级联国内加速版</title>
+    <script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mediapipe__camera_utils/0.2/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/mediapipe__face_mesh/0.4/face_mesh.js" crossorigin="anonymous"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background-color: #0f0f0f; color: #ddd; font-family: "Microsoft YaHei", sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
@@ -50,13 +50,13 @@
             </div>
 
             <div class="status-card">
-                <div id="syncStatus" class="status-text" style="color: #aa99ff;">数据总线: 侦听中...</div>
+                <div id="syncStatus" class="status-text" style="color: #aa99ff;">数据总线: 正在加载引擎...</div>
             </div>
 
             <div style="flex-grow: 1;"></div>
 
             <div id="systemStatus" class="system-status">
-                <span id="statusDot" style="color: #ffaa00;">●</span> <span id="statusText">正在与 PyQt5 本地主系统级联...</span>
+                <span id="statusDot" style="color: #ffaa00;">●</span> <span id="statusText">正在初始化本地底座...</span>
             </div>
         </div>
     </div>
@@ -83,7 +83,7 @@
 
             const face = results.multiFaceLandmarks[0];
 
-            // 提取基础特征指标
+            // 提取基础生理特征指标
             const leftEAR = (getDistance3D(face[159], face[145]) + getDistance3D(face[158], face[153])) / (2.0 * getDistance3D(face[33], face[133]));
             const rightEAR = (getDistance3D(face[385], face[373]) + getDistance3D(face[387], face[380])) / (2.0 * getDistance3D(face[362], face[263]));
             const ear = (leftEAR + rightEAR) / 2.0;
@@ -92,13 +92,13 @@
             const yaw = Math.abs((getDistance3D(face[234], face[4]) / (getDistance3D(face[234], face[4]) + getDistance3D(face[454], face[4])) - 0.5) * 120);
             const pitch = Math.abs(((face[10].y - face[4].y) / (face[152].y - face[4].y) - 1.0) * 90);
 
-            // 更新数据面板
+            // 更新实时面板数据
             document.getElementById('earVal').innerText = ear.toFixed(3);
             document.getElementById('marVal').innerText = mar.toFixed(3);
             document.getElementById('yawVal').innerText = yaw.toFixed(1) + "°";
             document.getElementById('pitchVal').innerText = pitch.toFixed(1) + "°";
 
-            // 绘制精炼人脸点阵骨骼
+            // 绘制精炼面部点阵骨骼拓扑
             ctx.fillStyle = '#00d1ff';
             [33, 133, 13, 14, 4, 10, 152].forEach(i => {
                 const pt = face[i];
@@ -107,7 +107,7 @@
                 ctx.fill();
             });
 
-            // 打包高频特征 JSON，外发给 PyQt5 主系统接口（绝无阻断性错误弹窗）
+            // 打包数据，外发给本地 PyQt5 级联后端
             const payload = {
                 ear: ear, mar: mar,
                 head_yaw: yaw, head_pitch: pitch, head_roll: 0.0,
@@ -128,26 +128,54 @@
                 }
             })
             .catch(err => {
-                // 静默设计：断开连接时不弹窗、不卡死，只在状态栏做微小提示
+                // 静默断开设计：本地未运行 Python 时，不弹错误弹窗，只作面板小提示
                 document.getElementById('statusDot').style.color = "#ff3333";
-                document.getElementById('statusText').innerText = "本地主系统未运行 (独立感知模式)";
-                document.getElementById('syncStatus').innerText = "本地接口未响应";
+                document.getElementById('statusText').innerText = "本地主系统未运行 (边缘独立感知中)";
+                document.getElementById('syncStatus').innerText = "本地总线未响应";
             });
         }
 
         async function setup() {
-            const faceMesh = new FaceMesh({
-                locateFile: (file) => `https://g.cdnjs.cn/ajax/libs/mediapipe-face_mesh/0.4/${file}`
-            });
-            faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-            faceMesh.onResults(onResults);
+            try {
+                // 🚀 【核心修复】将核心二进制模型资产重定向到字节跳动国内的静态资源镜像源，防止连不上 Google CDN 导致的加载罢工
+                const faceMesh = new FaceMesh({
+                    locateFile: (file) => {
+                        return `https://lf3-cdn-tos.bytecdntp.com/cdn/expire-1-M/mediapipe__face_mesh/0.4/${file}`;
+                    }
+                });
 
-            const camera = new Camera(video, {
-                onFrame: async () => { await faceMesh.send({ image: video }); },
-                width: 640, height: 480
-            });
-            await camera.start();
+                faceMesh.setOptions({ 
+                    maxNumFaces: 1, 
+                    refineLandmarks: true, 
+                    minDetectionConfidence: 0.5, 
+                    minTrackingConfidence: 0.5 
+                });
+                
+                faceMesh.onResults(onResults);
+
+                // 确保依赖和资源加载后再初始化摄像头
+                const camera = new Camera(video, {
+                    onFrame: async () => { 
+                        await faceMesh.send({ image: video }); 
+                    },
+                    width: 640, 
+                    height: 480
+                });
+
+                document.getElementById('syncStatus').innerText = "数据总线: 引擎加载成功，正在唤醒摄像头...";
+                await camera.start();
+                
+                document.getElementById('syncStatus').innerText = "数据总线: 正常传输中";
+                document.getElementById('statusDot').style.color = "#ffaa00";
+                document.getElementById('statusText').innerText = "边缘端就绪，等待本地 Python 系统拉起...";
+
+            } catch (error) {
+                console.error("Initialization Failed: ", error);
+                document.getElementById('syncStatus').innerText = "引擎初始化失败，请检查摄像头硬件权限";
+                document.getElementById('syncStatus').style.color = "#ff3333";
+            }
         }
+        
         window.addEventListener('load', setup);
     </script>
 </body>
