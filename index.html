@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 视觉专注力监控系统 - 高级全域自适应 Web 版</title>
     
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://g.cdnjs.cn/ajax/libs/mediapipe-camera_utils/0.2/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://g.cdnjs.cn/ajax/libs/mediapipe-face_mesh/0.4/face_mesh.js" crossorigin="anonymous"></script>
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -185,17 +185,15 @@
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
 
-        let EAR_THRESHOLD = 0.22; // 默认动态门限
-        let MAR_THRESHOLD = 0.45; 
+        let EAR_THRESHOLD = 0.22;
+        let MAR_THRESHOLD = 0.45;
         let isCalibrating = false;
         let currentAlert = null;
 
-        // 真实的三维欧氏距离几何计算公式
         function getDistance(p1, p2) {
             return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + Math.pow(p1.z - p2.z, 2));
         }
 
-        // 真正的单眼 EAR 算法
         function getEyeEAR(p1, p2, p3, p4, p5, p6) {
             const A = getDistance(p2, p6);
             const B = getDistance(p3, p5);
@@ -204,16 +202,14 @@
         }
 
         function calculateEAR(landmarks) {
-            // 左眼 MediaPipe 索引点
             const leftEAR = getEyeEAR(landmarks[33], landmarks[160], landmarks[158], landmarks[133], landmarks[153], landmarks[144]);
-            // 右眼 MediaPipe 索引点
             const rightEAR = getEyeEAR(landmarks[362], landmarks[385], landmarks[387], landmarks[263], landmarks[373], landmarks[380]);
             return parseFloat(((leftEAR + rightEAR) / 2.0).toFixed(2));
         }
 
         function calculateMAR(landmarks) {
-            const A = getDistance(landmarks[13], landmarks[14]); // 内嘴唇上下
-            const B = getDistance(landmarks[78], landmarks[308]); // 内嘴唇左右
+            const A = getDistance(landmarks[13], landmarks[14]);
+            const B = getDistance(landmarks[78], landmarks[308]);
             return parseFloat((A / B).toFixed(2));
         }
 
@@ -223,29 +219,22 @@
         }
 
         function showAlert(title, msg) {
-            if (currentAlert) return; 
+            if (currentAlert) return;
             document.getElementById('alertTitle').innerText = title;
             document.getElementById('alertReason').innerText = `原因: ${msg}`;
             document.getElementById('alertModal').classList.add('active');
             currentAlert = { title, msg };
         }
 
-        function closeAlert() {
+        function handleAlertConfirm(isReal) {
             document.getElementById('alertModal').classList.remove('active');
             currentAlert = null;
         }
 
         function openManualModal() { document.getElementById('manualModal').classList.add('active'); }
         function closeManualModal() { document.getElementById('manualModal').classList.remove('active'); }
-        
-        function saveManualRecord() {
-            alert('记录已保存至本地沙盒');
-            closeManualModal();
-        }
+        function saveManualRecord() { alert('记录已保存'); closeManualModal(); }
 
-        function handleAlertConfirm(isReal) { closeAlert(); }
-
-        // 多点自适应动态校准
         function startCalibration() {
             if (isCalibrating) return;
             isCalibrating = true;
@@ -265,13 +254,11 @@
                     document.getElementById('baselineBtn').disabled = false;
                     isCalibrating = false;
                     updateUI('statusText', '✅ 全域边界校准完毕');
-                    EAR_THRESHOLD = 0.20; // 根据真实人脸微调阈值注入
                 }
             }, 100);
         }
 
         function onResults(results) {
-            // 解决关键点绘制错位的 Canvas 视口自适应 Bug
             if (canvas.width !== video.videoWidth) {
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
@@ -288,16 +275,12 @@
             updateUI('confVal', '100%');
             const face = results.multiFaceLandmarks[0];
             
-            // 触发真实的数学计算
             const ear = calculateEAR(face);
             const mar = calculateMAR(face);
 
             updateUI('earVal', ear.toFixed(2));
             updateUI('marVal', mar.toFixed(2));
-            updateUI('fatigueFpVal', '0%');
-            updateUI('distFpVal', '0%');
 
-            // 绘制极简核心点位增强视觉交互
             ctx.fillStyle = '#00d1ff';
             [33, 133, 159, 145, 13, 14, 78, 308].forEach(i => {
                 const pt = face[i];
@@ -329,8 +312,9 @@
         }
 
         async function setup() {
+            // 完美替换成国内可秒级加载的算力核心，防止假死
             const faceMesh = new FaceMesh({
-                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+                locateFile: (file) => `https://g.cdnjs.cn/ajax/libs/mediapipe-face_mesh/0.4/${file}`
             });
 
             faceMesh.setOptions({
