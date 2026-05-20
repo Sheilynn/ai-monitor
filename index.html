@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 视觉专注力监控 system - MediaPipe V2 单任务文件版</title>
+    <title>AI 视觉专注力监控 system - GitHub Pages 同源 V2 修正版</title>
     
     <script src="https://fastly.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/vision_bundle.js" crossorigin="anonymous"></script>
 
@@ -175,7 +175,6 @@
             }, 100);
         }
 
-        // 核心渲染循环
         function renderLoop() {
             if (video.currentTime !== lastVideoTime) {
                 lastVideoTime = video.currentTime;
@@ -187,7 +186,6 @@
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                // 执行推理
                 const startTimeMs = performance.now();
                 const results = faceLandmarker.detectForVideo(video, startTimeMs);
 
@@ -203,7 +201,6 @@
                     updateUI('earVal', ear.toFixed(2));
                     updateUI('marVal', mar.toFixed(2));
 
-                    // 绘制关键点
                     ctx.fillStyle = '#00d1ff';
                     [33, 133, 159, 145, 13, 14, 78, 308].forEach(i => {
                         const pt = face[i];
@@ -239,21 +236,22 @@
 
         async function setup() {
             try {
-                // 初始化新版 MediaPipe 网页端 Wasm 环境加速
+                // 🚀 【核心修复】：彻底废弃错误的 locateFile 参数，改用符合 V2 规范的稳定 CDN 作为 Wasm 编译器基础
                 const vision = await mediapipe.tasks.vision;
                 const filesetResolver = await vision.FilesetResolver.forVisionTasks(
                     "https://fastly.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
                 );
 
-                // 获取当前部署环境根路径，锁定同源的本地单模型文件
+                // 获取并规范化当前 GitHub Pages 部署路径
                 const currentOrigin = window.location.origin + window.location.pathname;
                 const basePath = currentOrigin.endsWith('.html') 
                     ? currentOrigin.substring(0, currentOrigin.lastIndexOf('/') + 1) 
                     : (currentOrigin.endsWith('/') ? currentOrigin : currentOrigin + '/');
 
+                // 🚀 【同源配置】：从你自己的 GitHub 仓库根目录完全同源加载单个 task 模型文件
                 faceLandmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {
                     baseOptions: {
-                        modelAssetPath: basePath + "face_landmarker.task", // 🚀 这里精准加载你上传的本地单任务模型！
+                        modelAssetPath: basePath + "face_landmarker.task", 
                         delegate: "GPU"
                     },
                     outputFaceBlendshapes: false,
@@ -261,7 +259,7 @@
                     numFaces: 1
                 });
 
-                // 拉起摄像头
+                // 唤醒摄像头
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 video.srcObject = stream;
                 video.addEventListener("loadeddata", () => {
