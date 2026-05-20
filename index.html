@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 视觉专注力监控 system - 命名空间修正版</title>
+    <title>AI 视觉专注力监控 system - 算力内核终极修复版</title>
     
     <script src="vision_bundle.js" crossorigin="anonymous"></script>
 
@@ -57,7 +57,7 @@
         </div>
 
         <div class="side-panel">
-            <div class="panel-title">📊 系统监控面板 (V2 修正版)</div>
+            <div class="panel-title">📊 系统监控面板 (本地闭环版)</div>
             <div class="group-box">
                 <div class="legend">实时生理指标</div>
                 <div class="data-list">
@@ -84,7 +84,7 @@
                 <div id="progressText" class="progress-text">0%</div>
             </div>
             <div id="systemStatus" class="system-status">
-                <span id="statusDot">●</span> <span id="statusText">正在寻找本地命名空间...</span>
+                <span id="statusDot">●</span> <span id="statusText">正在拉起核心算力...</span>
             </div>
         </div>
     </div>
@@ -234,37 +234,44 @@
 
         async function setup() {
             try {
-                // 🚀 【核心重构】：自动检测浏览器环境里包的真实加载位置
-                // 兼容 CDN 直接挂载和本地脚本导出的各种奇葩全局对象名
-                let visionInstance = window.createMediaPipeTasksVision 
-                    ? await window.createMediaPipeTasksVision() 
-                    : (window.mediapipe && window.mediapipe.tasks ? window.mediapipe.tasks.vision : null);
+                // 🚀 【命名空间重度清洗】：确保在各种全局打包情况下，都能准确拿到核心和 Resolver 结构
+                let visionModule = null;
+                if (window.createMediaPipeTasksVision) {
+                    visionModule = await window.createMediaPipeTasksVision();
+                } else if (window.mediapipe && window.mediapipe.tasks && window.mediapipe.tasks.vision) {
+                    visionModule = window.mediapipe.tasks.vision;
+                } else if (typeof createMediaPipeTasksVision !== 'undefined') {
+                    visionModule = await createMediaPipeTasksVision();
+                }
+
+                if (!visionModule) {
+                    throw new Error("未能捕获到 MediaPipe 核心实例");
+                }
+
+                // 🚀 【绝对路径安全阻断】：获取包含当前长串中文或转义符的纯净绝对目录路径
+                const currentHref = window.location.href;
+                const baseDir = currentHref.substring(0, currentHref.lastIndexOf('/') + 1);
                 
-                if (!visionInstance && typeof createMediaPipeTasksVision !== 'undefined') {
-                    visionInstance = await createMediaPipeTasksVision();
-                }
+                console.log("📂 [内核初始化审计] 检测到本地基准文件夹路径为:", baseDir);
 
-                if (!visionInstance) {
-                    throw new Error("无法抓取到 MediaPipe 核心对象，请检查 vision_bundle.js 是否完整加载。");
-                }
-
-                // 规范化当前绝对文件夹路径
-                const currentFullUrl = window.location.href;
-                const folderPath = currentFullUrl.substring(0, currentFullUrl.lastIndexOf('/') + 1);
-
-                // 🚀 彻底本地闭环寻址
+                // 🚀 【终极底层注入】：使用官方最原生的 FilesetResolver 原型链机制拦截内部全部二阶段寻址
+                // 这样彻底断绝它尝试联网或往父级域名乱撞的可能
                 const filesetResolver = {
-                    targetPath: folderPath,
+                    targetPath: baseDir,
                     findWasmBinary: (name) => {
-                        console.log("正在加载本地同源编译器:", folderPath + "vision_bundle.wasm");
-                        return folderPath + "vision_bundle.wasm";
+                        const targetWasm = baseDir + "vision_bundle.wasm";
+                        console.log("🧱 [WASM 路由拦截成功] 强行导出同源编译核心:", targetWasm);
+                        return targetWasm;
+                    },
+                    findAssetPath: (name) => {
+                        return baseDir + name;
                     }
                 };
 
-                // 从你本地仓库路径读取单任务模型文件
-                faceLandmarker = await visionInstance.FaceLandmarker.createFromOptions(filesetResolver, {
+                // 🚀 【强力加载】：从绝对同源位置拉起单任务模型
+                faceLandmarker = await visionModule.FaceLandmarker.createFromOptions(filesetResolver, {
                     baseOptions: {
-                        modelAssetPath: folderPath + "face_landmarker.task", 
+                        modelAssetPath: baseDir + "face_landmarker.task", 
                         delegate: "GPU"
                     },
                     outputFaceBlendshapes: false,
@@ -282,7 +289,7 @@
                 });
                 
             } catch (error) {
-                console.error("离线算力内核加载崩溃: ", error);
+                console.error("💥 核心初始化被阻断, 详细错误堆栈:", error);
                 updateUI('statusText', '❌ 算力核心初始化失败');
                 document.getElementById('systemStatus').style.color = "#ff3333";
             }
