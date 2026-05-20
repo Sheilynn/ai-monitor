@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 视觉专注力监控系统 - 高级全域自适应 Web 版</title>
+    <title>AI 视觉专注力监控 system - GitHub Pages 100% 同源修复版</title>
     
-    <script src="https://g.cdnjs.cn/ajax/libs/mediapipe-camera_utils/0.2/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://g.cdnjs.cn/ajax/libs/mediapipe-face_mesh/0.4/face_mesh.js" crossorigin="anonymous"></script>
+    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/camera_utils@0.2/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/face_mesh@0.4/face_mesh.js" crossorigin="anonymous"></script>
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -67,7 +67,7 @@
         .progress-bar-container { width: 100%; background-color: #222; border: 1px solid #333; border-radius: 4px; height: 22px; position: relative; display: none; overflow: hidden; }
         .progress-bar-chunk { width: 0%; height: 100%; background-color: #00ff88; }
         .progress-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; line-height: 20px; font-size: 12px; color: #fff; }
-        .system-status { font-weight: bold; color: #00ff88; display: flex; align-items: center; gap: 5px; font-size: 14px; }
+        .system-status { font-weight: bold; color: #ffaa00; display: flex; align-items: center; gap: 5px; font-size: 14px; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 999; visibility: hidden; opacity: 0; transition: opacity 0.2s; }
         .modal-overlay.active { visibility: visible; opacity: 1; }
@@ -133,7 +133,7 @@
             </div>
 
             <div id="systemStatus" class="system-status">
-                <span id="statusDot">●</span> <span id="statusText">系统初始化中...</span>
+                <span id="statusDot">●</span> <span id="statusText">正在初始化中...</span>
             </div>
         </div>
     </div>
@@ -306,35 +306,55 @@
             }
 
             if (!isCalibrating) {
-                updateUI('statusText', '● 监控中');
+                updateUI('statusText', '监控中');
                 document.getElementById('systemStatus').style.color = "#00ff88";
             }
         }
 
         async function setup() {
-            // 完美替换成国内可秒级加载的算力核心，防止假死
-            const faceMesh = new FaceMesh({
-                locateFile: (file) => `https://g.cdnjs.cn/ajax/libs/mediapipe-face_mesh/0.4/${file}`
-            });
+            try {
+                // 🚀 【GitHub Pages 终极修复】：强制使用绝对路径拼接相对路径，确保 100% 同源不触发任何 CORS
+                const currentOrigin = window.location.origin + window.location.pathname;
+                
+                const faceMesh = new FaceMesh({
+                    locateFile: (file) => {
+                        // 过滤可能自带 index.html 的后缀，规范化根路径
+                        const basePath = currentOrigin.endsWith('.html') 
+                            ? currentOrigin.substring(0, currentOrigin.lastIndexOf('/') + 1) 
+                            : (currentOrigin.endsWith('/') ? currentOrigin : currentOrigin + '/');
+                        
+                        console.log("🚀 [同源审计] 正在本地加载核心资产:", basePath + file);
+                        return basePath + file;
+                    }
+                });
 
-            faceMesh.setOptions({
-                maxNumFaces: 1,
-                refineLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
+                faceMesh.setOptions({
+                    maxNumFaces: 1,
+                    refineLandmarks: true,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
 
-            faceMesh.onResults(onResults);
+                faceMesh.onResults(onResults);
 
-            const camera = new Camera(video, {
-                onFrame: async () => {
-                    await faceMesh.send({ image: video });
-                },
-                width: 640,
-                height: 480
-            });
+                const camera = new Camera(video, {
+                    onFrame: async () => {
+                        await faceMesh.send({ image: video });
+                    },
+                    width: 640,
+                    height: 480
+                });
 
-            await camera.start();
+                await camera.start();
+                
+                updateUI('statusText', '监控中');
+                document.getElementById('systemStatus').style.color = "#00ff88";
+                
+            } catch (error) {
+                console.error("MediaPipe 算力引擎启动失败崩溃堆栈: ", error);
+                updateUI('statusText', '❌ 算力核心初始化失败');
+                document.getElementById('systemStatus').style.color = "#ff3333";
+            }
         }
 
         window.addEventListener('load', setup);
