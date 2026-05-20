@@ -3,90 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 视觉专注力监控系统 - 高级全域自适应 Web 版</title>
-    
+    <title>AI 视觉专注力监控系统 - 前后端级联版</title>
     <script src="https://g.cdnjs.cn/ajax/libs/mediapipe-camera_utils/0.2/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://g.cdnjs.cn/ajax/libs/mediapipe-face_mesh/0.4/face_mesh.js" crossorigin="anonymous"></script>
-
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            background-color: #0f0f0f; color: #ddd;
-            font-family: "Microsoft YaHei", -apple-system, sans-serif;
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh; padding: 20px;
-        }
-        .main-container { display: flex; width: 100%; max-width: 1300px; height: 780px; gap: 15px; }
-        
-        .video-card {
-            flex: 7; background-color: #161616; border: 1px solid #2d2d2d;
-            border-radius: 12px; padding: 10px; display: flex; position: relative;
-        }
-        .video-wrapper {
-            width: 100%; height: 100%; background-color: #000;
-            border-radius: 8px; position: relative; overflow: hidden;
-        }
-        video {
-            width: 100%; height: 100%; object-fit: cover;
-            transform: scaleX(-1);
-        }
-        canvas {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            transform: scaleX(-1); pointer-events: none;
-        }
-
-        .side-panel {
-            width: 360px; background-color: #161616; border: 1px solid #2d2d2d;
-            border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 20px;
-        }
+        body { background-color: #0f0f0f; color: #ddd; font-family: "Microsoft YaHei", sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .main-container { display: flex; width: 100%; max-width: 1300px; height: 750px; gap: 15px; }
+        .video-card { flex: 7; background-color: #161616; border: 1px solid #2d2d2d; border-radius: 12px; padding: 10px; position: relative; }
+        .video-wrapper { width: 100%; height: 100%; background-color: #000; border-radius: 8px; position: relative; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); pointer-events: none; }
+        .side-panel { width: 360px; background-color: #161616; border: 1px solid #2d2d2d; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
         .panel-title { color: #00d1ff; font-size: 20px; font-weight: bold; }
         .group-box { border: 1px solid #333; border-radius: 8px; padding: 15px; position: relative; }
-        .group-box .legend {
-            position: absolute; top: -10px; left: 15px; background-color: #161616;
-            padding: 0 5px; color: #888; font-size: 13px; font-weight: bold;
-        }
-        .data-list { display: flex; flex-direction: column; gap: 12px; margin-top: 5px; }
+        .group-box .legend { position: absolute; top: -10px; left: 15px; background-color: #161616; padding: 0 5px; color: #888; font-size: 13px; font-weight: bold; }
+        .data-list { display: flex; flex-direction: column; gap: 10px; margin-top: 5px; }
         .data-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
-        .data-value { color: #00d1ff; font-weight: bold; font-family: "Consolas", monospace; font-size: 16px; }
-        
-        .status-card { background-color: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 15px; transition: all 0.3s; }
-        .status-card.alert-mode { background-color: #441111; border: 1px solid #ff4444; }
-        .status-text { font-size: 15px; font-weight: bold; margin-bottom: 4px; }
-        
-        .spacer { flex-grow: 1; }
-        button {
-            width: 100%; color: white; font-weight: bold; padding: 12px 20px;
-            border-radius: 8px; border: none; cursor: pointer; font-size: 14px;
-        }
-        .manual-btn { background-color: #ff6600; }
-        .manual-btn:hover { background-color: #ff8800; }
-        .baseline-btn { background-color: #0066cc; }
-        .baseline-btn:hover { background-color: #0088ff; }
-        button:disabled { background-color: #444 !important; color: #888; cursor: not-allowed; }
-
-        .progress-bar-container { width: 100%; background-color: #222; border: 1px solid #333; border-radius: 4px; height: 22px; position: relative; display: none; overflow: hidden; }
-        .progress-bar-chunk { width: 0%; height: 100%; background-color: #00ff88; }
-        .progress-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; line-height: 20px; font-size: 12px; color: #fff; }
-        .system-status { font-weight: bold; color: #00ff88; display: flex; align-items: center; gap: 5px; font-size: 14px; }
-
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 999; visibility: hidden; opacity: 0; transition: opacity 0.2s; }
-        .modal-overlay.active { visibility: visible; opacity: 1; }
-        .modal-dialog { background-color: #1a1a1a; border: 1px solid #333; border-radius: 12px; width: 400px; padding: 25px; }
-        .modal-title { font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 15px; }
-        .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
-        .btn-confirm { background-color: #00cc66; }
-        .btn-false { background-color: #cc4444; }
-        .form-group { display: flex; align-items: center; margin-bottom: 12px; gap: 10px; }
-        .form-group label { width: 80px; font-size: 14px; }
-        select, textarea { flex: 1; background-color: #2a2a2a; color: #ddd; border: 1px solid #444; border-radius: 4px; padding: 6px; }
-        textarea { height: 60px; resize: none; }
-
-        @media (max-width: 900px) {
-            body { padding: 10px; }
-            .main-container { flex-direction: column; height: auto; }
-            .video-card { height: 350px; }
-            .side-panel { width: 100%; }
-        }
+        .data-value { color: #00d1ff; font-weight: bold; font-family: "Consolas", monospace; font-size: 15px; }
+        .status-card { background-color: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 15px; }
+        .status-text { font-size: 14px; font-weight: bold; }
+        .system-status { font-size: 13px; font-weight: bold; color: #888; display: flex; align-items: center; gap: 5px; }
     </style>
 </head>
 <body>
@@ -100,82 +37,26 @@
         </div>
 
         <div class="side-panel">
-            <div class="panel-title">📊 系统监控面板</div>
+            <div class="panel-title">📡 边缘特征提取端</div>
 
             <div class="group-box">
-                <div class="legend">实时生理指标</div>
+                <div class="legend">实时生理指标 (Web 采集)</div>
                 <div class="data-list">
-                    <div class="data-row"><span>👁️ 眼部开合度(EAR):</span><span id="earVal" class="data-value">0.00</span></div>
-                    <div class="data-row"><span>👄 嘴巴开合度(MAR):</span><span id="marVal" class="data-value">0.00</span></div>
-                    <div class="data-row"><span>🛡️ 环境置信度:</span><span id="confVal" class="data-value">0%</span></div>
-                    <div class="data-row"><span>😴 疲劳误报率:</span><span id="fatigueFpVal" class="data-value">0%</span></div>
-                    <div class="data-row"><span>😵 分心误报率:</span><span id="distFpVal" class="data-value">0%</span></div>
+                    <div class="data-row"><span>👁️ 原始 EAR:</span><span id="earVal" class="data-value">0.000</span></div>
+                    <div class="data-row"><span>👄 原始 MAR:</span><span id="marVal" class="data-value">0.000</span></div>
+                    <div class="data-row"><span>🧭 估计 Yaw:</span><span id="yawVal" class="data-value">0.0°</span></div>
+                    <div class="data-row"><span>📐 估计 Pitch:</span><span id="pitchVal" class="data-value">0.0°</span></div>
                 </div>
             </div>
 
-            <div id="statusCard" class="status-card">
-                <div id="fatigueLabel" class="status-text">疲劳状态: --</div>
-                <div id="distLabel" class="status-text">注意力状态: --</div>
+            <div class="status-card">
+                <div id="syncStatus" class="status-text" style="color: #aa99ff;">数据总线: 侦听中...</div>
             </div>
 
-            <div class="spacer"></div>
-
-            <div class="group-box">
-                <div class="legend">📝 手动记录</div>
-                <button class="manual-btn" onclick="openManualModal()">📍 记录当前状态</button>
-            </div>
-
-            <button id="baselineBtn" class="baseline-btn" onclick="startCalibration()">📷 捕获多点全域基线</button>
-
-            <div id="progressBar" class="progress-bar-container">
-                <div id="progressBarChunk" class="progress-bar-chunk"></div>
-                <div id="progressText" class="progress-text">0%</div>
-            </div>
+            <div style="flex-grow: 1;"></div>
 
             <div id="systemStatus" class="system-status">
-                <span id="statusDot">●</span> <span id="statusText">系统初始化中...</span>
-            </div>
-        </div>
-    </div>
-
-    <div id="alertModal" class="modal-overlay">
-        <div class="modal-dialog">
-            <div id="alertTitle" class="modal-title" style="color:#ff4444;">检测到异常！</div>
-            <div class="modal-content" style="text-align: center;">
-                <p id="alertReason" style="margin-bottom: 15px;">原因: --</p>
-                <p>请确认这是否为真实的异常：</p>
-            </div>
-            <div class="modal-buttons">
-                <button class="btn-confirm" onclick="handleAlertConfirm(true)">✓ 确认异常</button>
-                <button class="btn-false" onclick="handleAlertConfirm(false)">✗ 误报</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="manualModal" class="modal-overlay">
-        <div class="modal-dialog">
-            <div class="modal-title" style="color: #00d1ff;">📍 手动记录当前状态</div>
-            <div class="form-group">
-                <label>状态类型:</label>
-                <select id="recordType"><option value="分心">分心</option><option value="疲劳">疲劳</option></select>
-            </div>
-            <div class="form-group">
-                <label>具体原因:</label>
-                <select id="recordReason">
-                    <option value="HEAD_YAW">HEAD_YAW - 头部左右转动</option>
-                    <option value="HEAD_PITCH">HEAD_PITCH - 头部俯仰</option>
-                    <option value="GAZE_AWAY">GAZE_AWAY - 视线偏离</option>
-                    <option value="PERCLOS">PERCLOS - 闭眼时间过长</option>
-                    <option value="YAWN">YAWN - 打哈欠</option>
-                </select>
-            </div>
-            <div class="form-group" style="flex-direction: column; align-items: stretch;">
-                <label>备注（可选）:</label>
-                <textarea id="recordNote" placeholder="例如：正在看手机..."></textarea>
-            </div>
-            <div class="modal-buttons">
-                <button class="btn-confirm" onclick="saveManualRecord()">💾 保存记录</button>
-                <button style="background-color:#444;" onclick="closeManualModal()">✗ 取消</button>
+                <span id="statusDot" style="color: #ffaa00;">●</span> <span id="statusText">正在与 PyQt5 本地主系统级联...</span>
             </div>
         </div>
     </div>
@@ -185,77 +66,10 @@
         const canvas = document.getElementById('output_canvas');
         const ctx = canvas.getContext('2d');
 
-        let EAR_THRESHOLD = 0.22;
-        let MAR_THRESHOLD = 0.45;
-        let isCalibrating = false;
-        let currentAlert = null;
+        const BACKEND_API_URL = "http://127.0.0.1:8000/api/stream_data";
 
-        function getDistance(p1, p2) {
+        function getDistance3D(p1, p2) {
             return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2) + Math.pow(p1.z - p2.z, 2));
-        }
-
-        function getEyeEAR(p1, p2, p3, p4, p5, p6) {
-            const A = getDistance(p2, p6);
-            const B = getDistance(p3, p5);
-            const C = getDistance(p1, p4);
-            return (A + B) / (2.0 * C);
-        }
-
-        function calculateEAR(landmarks) {
-            const leftEAR = getEyeEAR(landmarks[33], landmarks[160], landmarks[158], landmarks[133], landmarks[153], landmarks[144]);
-            const rightEAR = getEyeEAR(landmarks[362], landmarks[385], landmarks[387], landmarks[263], landmarks[373], landmarks[380]);
-            return parseFloat(((leftEAR + rightEAR) / 2.0).toFixed(2));
-        }
-
-        function calculateMAR(landmarks) {
-            const A = getDistance(landmarks[13], landmarks[14]);
-            const B = getDistance(landmarks[78], landmarks[308]);
-            return parseFloat((A / B).toFixed(2));
-        }
-
-        function updateUI(id, val) {
-            const el = document.getElementById(id);
-            if (el) el.innerText = val;
-        }
-
-        function showAlert(title, msg) {
-            if (currentAlert) return;
-            document.getElementById('alertTitle').innerText = title;
-            document.getElementById('alertReason').innerText = `原因: ${msg}`;
-            document.getElementById('alertModal').classList.add('active');
-            currentAlert = { title, msg };
-        }
-
-        function handleAlertConfirm(isReal) {
-            document.getElementById('alertModal').classList.remove('active');
-            currentAlert = null;
-        }
-
-        function openManualModal() { document.getElementById('manualModal').classList.add('active'); }
-        function closeManualModal() { document.getElementById('manualModal').classList.remove('active'); }
-        function saveManualRecord() { alert('记录已保存'); closeManualModal(); }
-
-        function startCalibration() {
-            if (isCalibrating) return;
-            isCalibrating = true;
-            document.getElementById('baselineBtn').disabled = true;
-            document.getElementById('progressBar').style.display = 'block';
-            
-            let step = 0;
-            const interval = setInterval(() => {
-                step++;
-                const pct = Math.round((step / 20) * 100);
-                document.getElementById('progressBarChunk').style.width = pct + '%';
-                document.getElementById('progressText').innerText = pct + '%';
-
-                if (step >= 20) {
-                    clearInterval(interval);
-                    document.getElementById('progressBar').style.display = 'none';
-                    document.getElementById('baselineBtn').disabled = false;
-                    isCalibrating = false;
-                    updateUI('statusText', '✅ 全域边界校准完毕');
-                }
-            }, 100);
         }
 
         function onResults(results) {
@@ -263,80 +77,77 @@
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
             }
-
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
-                updateUI('statusText', '⚠️ 视线未锁定核心区域');
-                updateUI('confVal', '0%');
-                return;
-            }
+            if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
 
-            updateUI('confVal', '100%');
             const face = results.multiFaceLandmarks[0];
-            
-            const ear = calculateEAR(face);
-            const mar = calculateMAR(face);
 
-            updateUI('earVal', ear.toFixed(2));
-            updateUI('marVal', mar.toFixed(2));
+            // 提取基础特征指标
+            const leftEAR = (getDistance3D(face[159], face[145]) + getDistance3D(face[158], face[153])) / (2.0 * getDistance3D(face[33], face[133]));
+            const rightEAR = (getDistance3D(face[385], face[373]) + getDistance3D(face[387], face[380])) / (2.0 * getDistance3D(face[362], face[263]));
+            const ear = (leftEAR + rightEAR) / 2.0;
+            const mar = getDistance3D(face[13], face[14]) / getDistance3D(face[78], face[308]);
 
+            const yaw = Math.abs((getDistance3D(face[234], face[4]) / (getDistance3D(face[234], face[4]) + getDistance3D(face[454], face[4])) - 0.5) * 120);
+            const pitch = Math.abs(((face[10].y - face[4].y) / (face[152].y - face[4].y) - 1.0) * 90);
+
+            // 更新数据面板
+            document.getElementById('earVal').innerText = ear.toFixed(3);
+            document.getElementById('marVal').innerText = mar.toFixed(3);
+            document.getElementById('yawVal').innerText = yaw.toFixed(1) + "°";
+            document.getElementById('pitchVal').innerText = pitch.toFixed(1) + "°";
+
+            // 绘制精炼人脸点阵骨骼
             ctx.fillStyle = '#00d1ff';
-            [33, 133, 159, 145, 13, 14, 78, 308].forEach(i => {
+            [33, 133, 13, 14, 4, 10, 152].forEach(i => {
                 const pt = face[i];
                 ctx.beginPath();
-                ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 3, 0, 2 * Math.PI);
+                ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 2, 0, 2 * Math.PI);
                 ctx.fill();
             });
 
-            const isFatigue = ear < EAR_THRESHOLD;
-            const isDistracted = mar > MAR_THRESHOLD;
+            // 打包高频特征 JSON，外发给 PyQt5 主系统接口（绝无阻断性错误弹窗）
+            const payload = {
+                ear: ear, mar: mar,
+                head_yaw: yaw, head_pitch: pitch, head_roll: 0.0,
+                gaze_x: 0.5, gaze_y: 0.5
+            };
 
-            updateUI('fatigueLabel', `疲劳状态: ${isFatigue ? '⚠️ ALERT' : 'NORMAL'}`);
-            updateUI('distLabel', `注意力状态: ${isDistracted ? '⚠️ DISTRACTED' : 'NORMAL'}`);
-
-            const card = document.getElementById('statusCard');
-            if (isFatigue || isDistracted) {
-                card.classList.add('alert-mode');
-                if (!currentAlert && !isCalibrating) {
-                    showAlert('检测到异常状态', isFatigue ? 'PERCLOS - 闭眼时间过长' : 'YAWN - 连续大哈欠');
+            fetch(BACKEND_API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(res => {
+                if(res.status === "success") {
+                    document.getElementById('statusDot').style.color = "#00ff88";
+                    document.getElementById('statusText').innerText = "已成功级联到本地 PyQt5 系统";
+                    document.getElementById('syncStatus').innerText = res.message;
                 }
-            } else {
-                card.classList.remove('alert-mode');
-            }
-
-            if (!isCalibrating) {
-                updateUI('statusText', '● 监控中');
-                document.getElementById('systemStatus').style.color = "#00ff88";
-            }
+            })
+            .catch(err => {
+                // 静默设计：断开连接时不弹窗、不卡死，只在状态栏做微小提示
+                document.getElementById('statusDot').style.color = "#ff3333";
+                document.getElementById('statusText').innerText = "本地主系统未运行 (独立感知模式)";
+                document.getElementById('syncStatus').innerText = "本地接口未响应";
+            });
         }
 
         async function setup() {
-            // 完美替换成国内可秒级加载的算力核心，防止假死
             const faceMesh = new FaceMesh({
                 locateFile: (file) => `https://g.cdnjs.cn/ajax/libs/mediapipe-face_mesh/0.4/${file}`
             });
-
-            faceMesh.setOptions({
-                maxNumFaces: 1,
-                refineLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-
+            faceMesh.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
             faceMesh.onResults(onResults);
 
             const camera = new Camera(video, {
-                onFrame: async () => {
-                    await faceMesh.send({ image: video });
-                },
-                width: 640,
-                height: 480
+                onFrame: async () => { await faceMesh.send({ image: video }); },
+                width: 640, height: 480
             });
-
             await camera.start();
         }
-
         window.addEventListener('load', setup);
     </script>
 </body>
