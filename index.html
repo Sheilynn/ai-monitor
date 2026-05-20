@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 视觉专注力监控系统 - 高级全域自适应 Web 版</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+    <style>
+        /* PyQt5 暗黑科技风 UI 1:1 像素级还原 */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0f0f0f; color: #ddd;
+            font-family: "Microsoft YaHei", -apple-system, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 20px;
+        }
+        .main-container { display: flex; width: 100%; max-width: 1300px; height: 780px; gap: 15px; }
+        
+        /* 左侧视频监控区 */
+        .video-card {
+            flex: 7; background-color: #161616; border: 1px solid #2d2d2d;
+            border-radius: 12px; padding: 10px; display: flex; position: relative;
+        }
+        .video-wrapper {
+            width: 100%; height: 100%; background-color: #000;
+            border-radius: 8px; position: relative; overflow: hidden;
+        }
+        video {
+            width: 100%; height: 100%; object-fit: cover;
+            transform: scaleX(-1); /* 水平镜像，符合人眼习惯 */
+        }
+        canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            transform: scaleX(-1); pointer-events: none;
+        }
+
+        /* 右侧数据面板区 */
+        .side-panel {
+            width: 360px; background-color: #161616; border: 1px solid #2d2d2d;
+            border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 20px;
+        }
+        .panel-title { color: #00d1ff; font-size: 20px; font-weight: bold; }
+        .group-box { border: 1px solid #333; border-radius: 8px; padding: 15px; position: relative; }
+        .group-box .legend {
+            position: absolute; top: -10px; left: 15px; background-color: #161616;
+            padding: 0 5px; color: #888; font-size: 13px; font-weight: bold;
+        }
+        .data-list { display: flex; flex-direction: column; gap: 12px; margin-top: 5px; }
+        .data-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .data-value { color: #00d1ff; font-weight: bold; font-family: "Consolas", monospace; font-size: 16px; }
+        
+        /* 预警卡片状态 */
+        .status-card { background-color: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 15px; transition: all 0.3s; }
+        .status-card.alert-mode { background-color: #441111; border: 1px solid #ff4444; }
+        .status-text { font-size: 15px; font-weight: bold; margin-bottom: 4px; }
+        
+        .spacer { flex-grow: 1; }
+        button {
+            width: 100%; color: white; font-weight: bold; padding: 12px 20px;
+            border-radius: 8px; border: none; cursor: pointer; font-size: 14px;
+        }
+        .manual-btn { background-color: #ff6600; }
+        .manual-btn:hover { background-color: #ff8800; }
+        .baseline-btn { background-color: #0066cc; }
+        .baseline-btn:hover { background-color: #0088ff; }
+        button:disabled { background-color: #444 !important; color: #888; cursor: not-allowed; }
+
+        /* 进度条与底层系统状态 */
+        .progress-bar-container { width: 100%; background-color: #222; border: 1px solid #333; border-radius: 4px; height: 22px; position: relative; display: none; overflow: hidden; }
+        .progress-bar-chunk { width: 0%; height: 100%; background-color: #00ff88; }
+        .progress-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; line-height: 20px; font-size: 12px; color: #fff; }
+        .system-status { font-weight: bold; color: #00ff88; display: flex; align-items: center; gap: 5px; font-size: 14px; }
+
+        /* 模态框样式 */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 999; visibility: hidden; opacity: 0; transition: opacity 0.2s; }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-dialog { background-color: #1a1a1a; border: 1px solid #333; border-radius: 12px; width: 400px; padding: 25px; }
+        .modal-title { font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 15px; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .btn-confirm { background-color: #00cc66; }
+        .btn-false { background-color: #cc4444; }
+        .form-group { display: flex; align-items: center; margin-bottom: 12px; gap: 10px; }
+        .form-group label { width: 80px; font-size: 14px; }
+        select, textarea { flex: 1; background-color: #2a2a2a; color: #ddd; border: 1px solid #444; border-radius: 4px; padding: 6px; }
+        textarea { height: 60px; resize: none; }
+
+        @media (max-width: 900px) {
+            body { padding: 10px; }
+            .main-container { flex-direction: column; height: auto; }
+            .video-card { height: 350px; }
+            .side-panel { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <div class="video-card">
+            <div class="video-wrapper">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="output_canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="panel-title">📊 系统监控面板</div>
+
+            <div class="group-box">
+                <div class="legend">实时生理指标</div>
+                <div class="data-list">
+                    <div class="data-row"><span>👁️ 眼部开合度(EAR):</span><span id="earVal" class="data-value">0.00</span></div>
+                    <div class="data-row"><span>👄 嘴巴开合度(MAR):</span><span id="marVal" class="data-value">0.00</span></div>
+                    <div class="data-row"><span>🛡️ 环境置信度:</span><span id="confVal" class="data-value">0%</span></div>
+                    <div class="data-row"><span>😴 疲劳误报率:</span><span id="fatigueFpVal" class="data-value">0%</span></div>
+                    <div class="data-row"><span>😵 分心误报率:</span><span id="distFpVal" class="data-value">0%</span></div>
+                </div>
+            </div>
+
+            <div id="statusCard" class="status-card">
+                <div id="fatigueLabel" class="status-text">疲劳状态: --</div>
+                <div id="distLabel" class="status-text">注意力状态: --</div>
+            </div>
+
+            <div class="spacer"></div>
+
+            <div class="group-box">
+                <div class="legend">📝 手动记录</div>
+                <button class="manual-btn" onclick="openManualModal()">📍 记录当前状态</button>
+            </div>
+
+            <button id="baselineBtn" class="baseline-btn" onclick="startCalibration()">📷 捕获多点全域基线</button>
+
+            <div id="progressBar" class="progress-bar-container">
+                <div id="progressBarChunk" class="progress-bar-chunk"></div>
+                <div id="progressText" class="progress-text">0%</div>
+            </div>
+
+            <div id="systemStatus" class="system-status">
+                <span id="statusDot">●</span> <span id="statusText">系统初始化中...</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="alertModal" class="modal-overlay">
+        <div class="modal-dialog">
+            <div id="alertTitle" class="modal-title" style="color:#ff4444;">检测到异常！</div>
+            <div class="modal-content" style="text-align: center;">
+                <p id="alertReason" style="margin-bottom: 15px;">原因: --</p>
+                <p>请确认这是否为真实的异常：</p>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-confirm" onclick="handleAlertConfirm(true)">✓ 确认异常</button>
+                <button class="btn-false" onclick="handleAlertConfirm(false)">✗ 误报</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="manualModal" class="modal-overlay">
+        <div class="modal-dialog">
+            <div class="modal-title" style="color: #00d1ff;">📍 手动记录当前状态</div>
+            <div class="form-group">
+                <label>状态类型:</label>
+                <select id="recordType"><option value="分心">分心</option><option value="疲劳">疲劳</option></select>
+            </div>
+            <div class="form-group">
+                <label>具体原因:</label>
+                <select id="recordReason">
+                    <option value="HEAD_YAW">HEAD_YAW - 头部左右转动</option>
+                    <option value="HEAD_PITCH">HEAD_PITCH - 头部俯仰</option>
+                    <option value="GAZE_AWAY">GAZE_AWAY - 视线偏离</option>
+                    <option value="PERCLOS">PERCLOS - 闭眼时间过长</option>
+                    <option value="YAWN">YAWN - 打哈欠</option>
+                </select>
+            </div>
+            <div class="form-group" style="flex-direction: column; align-items: stretch;">
+                <label>备注（可选）:</label>
+                <textarea id="recordNote" placeholder="例如：正在看手机..."></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-confirm" onclick="
