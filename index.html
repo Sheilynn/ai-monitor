@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 视觉专注力监控 system - MediaPipe V2 单任务文件版</title>
+    <title>AI 视觉专注力监控 system - 命名空间修正版</title>
     
-    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/vision_bundle.js" crossorigin="anonymous"></script>
+    <script src="vision_bundle.js" crossorigin="anonymous"></script>
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -44,9 +44,6 @@
         .modal-dialog { background-color: #1a1a1a; border: 1px solid #333; border-radius: 12px; width: 400px; padding: 25px; }
         .modal-buttons { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
         .btn-confirm { background-color: #00cc66; }
-        .form-group { display: flex; align-items: center; margin-bottom: 12px; gap: 10px; }
-        .form-group label { width: 80px; font-size: 14px; }
-        select, textarea { flex: 1; background-color: #2a2a2a; color: #ddd; border: 1px solid #444; border-radius: 4px; padding: 6px; }
     </style>
 </head>
 <body>
@@ -60,7 +57,7 @@
         </div>
 
         <div class="side-panel">
-            <div class="panel-title">📊 系统监控面板 (V2)</div>
+            <div class="panel-title">📊 系统监控面板 (V2 修正版)</div>
             <div class="group-box">
                 <div class="legend">实时生理指标</div>
                 <div class="data-list">
@@ -87,7 +84,7 @@
                 <div id="progressText" class="progress-text">0%</div>
             </div>
             <div id="systemStatus" class="system-status">
-                <span id="statusDot">●</span> <span id="statusText">正在拉起 V2 算力内核...</span>
+                <span id="statusDot">●</span> <span id="statusText">正在寻找本地命名空间...</span>
             </div>
         </div>
     </div>
@@ -149,9 +146,7 @@
             currentAlert = { title, msg };
         }
 
-        // 占位函数防止报错
         function openManualModal() {}
-
         function handleAlertConfirm(isReal) {
             document.getElementById('alertModal').classList.remove('active');
             currentAlert = null;
@@ -239,23 +234,37 @@
 
         async function setup() {
             try {
-                // 初始化 Wasm 基础编译器（走公共安全 CDN）
-                const vision = await mediapipe.tasks.vision;
-                const filesetResolver = await vision.FilesetResolver.forVisionTasks(
-                    "https://fastly.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
-                );
+                // 🚀 【核心重构】：自动检测浏览器环境里包的真实加载位置
+                // 兼容 CDN 直接挂载和本地脚本导出的各种奇葩全局对象名
+                let visionInstance = window.createMediaPipeTasksVision 
+                    ? await window.createMediaPipeTasksVision() 
+                    : (window.mediapipe && window.mediapipe.tasks ? window.mediapipe.tasks.vision : null);
+                
+                if (!visionInstance && typeof createMediaPipeTasksVision !== 'undefined') {
+                    visionInstance = await createMediaPipeTasksVision();
+                }
 
-                // 🚀 【终极清洗提取】：不管当前 HTML 文件名多长、带不带中文，只截取到它所在的当前文件夹路径
+                if (!visionInstance) {
+                    throw new Error("无法抓取到 MediaPipe 核心对象，请检查 vision_bundle.js 是否完整加载。");
+                }
+
+                // 规范化当前绝对文件夹路径
                 const currentFullUrl = window.location.href;
                 const folderPath = currentFullUrl.substring(0, currentFullUrl.lastIndexOf('/') + 1);
-                const finalModelPath = folderPath + "face_landmarker.task";
-                
-                console.log("🎯 [路径自适应审计] 规范化后的模型绝对路径为:", finalModelPath);
 
-                // 从清洗后的安全同源路径加载模型
-                faceLandmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {
+                // 🚀 彻底本地闭环寻址
+                const filesetResolver = {
+                    targetPath: folderPath,
+                    findWasmBinary: (name) => {
+                        console.log("正在加载本地同源编译器:", folderPath + "vision_bundle.wasm");
+                        return folderPath + "vision_bundle.wasm";
+                    }
+                };
+
+                // 从你本地仓库路径读取单任务模型文件
+                faceLandmarker = await visionInstance.FaceLandmarker.createFromOptions(filesetResolver, {
                     baseOptions: {
-                        modelAssetPath: finalModelPath, 
+                        modelAssetPath: folderPath + "face_landmarker.task", 
                         delegate: "GPU"
                     },
                     outputFaceBlendshapes: false,
@@ -273,7 +282,7 @@
                 });
                 
             } catch (error) {
-                console.error("V2 算力引擎内核崩溃: ", error);
+                console.error("离线算力内核加载崩溃: ", error);
                 updateUI('statusText', '❌ 算力核心初始化失败');
                 document.getElementById('systemStatus').style.color = "#ff3333";
             }
